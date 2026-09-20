@@ -6,10 +6,10 @@ import pandas as pd
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-from utils import save_figure, calc_mean_G, get_fittest_neighbor, fermi
+from utils import save_figure, calc_mu_delta_G, get_fittest_neighbor, fermi
 
 
-def calculate_fitness(population, gen, alpha, beta, sigma, T, O, A):
+def calculate_fitness(population, z, alpha, beta, sigma, T, O, A):
     size = len(population)
     fitnesses = np.zeros(size)
     
@@ -20,8 +20,8 @@ def calculate_fitness(population, gen, alpha, beta, sigma, T, O, A):
 
         for x in neighbors:
             neighbor_strategy = population[x]
-            mean_G = calc_mean_G(gen)
-            delta_G = np.random.normal(mean_G, sigma)
+            mu_delta_G = calc_mu_delta_G(z)
+            delta_G = max(np.random.normal(mu_delta_G, sigma), 0)
 
             payoff_matrix = {
                 'C': {'C': alpha*delta_G - T - 2*O - A, 'D': -T - O},
@@ -65,8 +65,7 @@ def simulate_population(size=10000, generations=150, initial_cooperator_ratio=0.
     population = np.random.choice(['C', 'D'], size=size, p=[initial_cooperator_ratio, 1 - initial_cooperator_ratio])
     history_frequency = []
     history_fitnesses = []
-
-    print('Initilization')
+    z = 0
 
     for gen in range(generations):
         cooperator_count = sum(population == 'C')
@@ -75,14 +74,14 @@ def simulate_population(size=10000, generations=150, initial_cooperator_ratio=0.
             break
 
         history_frequency.append(cooperator_count)
-        fitnesses = calculate_fitness(population, gen, alpha, beta, sigma, T, O, A)
+        z += cooperator_count / size
+        print(size)
+        fitnesses = calculate_fitness(population, z, alpha, beta, sigma, T, O, A)
         
         total_fitness = np.sum(fitnesses)
         history_fitnesses.append(total_fitness)
 
         population = update_population(population, fitnesses, deterministic, K=K)
-
-    print('Final results')
 
     if save_figures:
         # Show history frequency
@@ -129,12 +128,12 @@ def __main__():
     parser.add_argument('--gen', type=int, default=1000, help='generations')
     parser.add_argument('--alpha', type=float, default=1, help='synergy coefficient')
     parser.add_argument('--beta', type=float, default=1, help='free-riding coefficient')
-    parser.add_argument('--sigma', type=float, default=5, help='deta G variance')
+    parser.add_argument('--sigma', type=float, default=2, help='deta G variance')
     parser.add_argument('--T', type=float, default=200, help='training cost')
     parser.add_argument('--O', type=float, default=5, help='communication cost')
     parser.add_argument('--A', type=float, default=10, help='aggregation cost')
     parser.add_argument('--K', type=float, default=0.1, help='fermi')
-    parser.add_argument('--det', type=bool, default=False, help='deterministic')
+    parser.add_argument('--det', action='store_true', help='deterministic')
     parser.add_argument('--seed-start', type=int, default=0, help='Starting seed for simulations')
     parser.add_argument('--seed-end', type=int, default=1, help='Ending seed for simulations')
 
@@ -161,7 +160,8 @@ def __main__():
 
         os.makedirs(data_dir, exist_ok=True)
 
-        file_prefix = f'{data_dir}/alpha_{args.alpha}_beta_{args.beta}'
+        mode = "det" if args.det else f"K_{args.K}"
+        file_prefix = f'{data_dir}/ratio_{args.ratio}_{mode}_alpha_{args.alpha}_beta_{args.beta}'
 
         df = pd.DataFrame(res_freq, columns=['Cooperator_Frequency'])
         df.to_csv(f'{file_prefix}_cooperator_frequency.csv', index=False)

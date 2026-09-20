@@ -8,7 +8,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 
-from utils import save_figure, calc_mean_G, get_fittest_neighbor, fermi
+from utils import save_figure, calc_mu_delta_G, get_fittest_neighbor, fermi
 
 
 def visualize_population(population, save=False):
@@ -22,7 +22,7 @@ def visualize_population(population, save=False):
     if save:
         save_figure(plt, filename=f"population_{int(time.time())}.png")
 
-def calculate_fitness(population, gen, alpha, beta, sigma, T, O, A):
+def calculate_fitness(population, z, alpha, beta, sigma, T, O, A):
     size_x, size_y = population.shape
     fitnesses = np.zeros((size_x, size_y))
     
@@ -42,8 +42,8 @@ def calculate_fitness(population, gen, alpha, beta, sigma, T, O, A):
 
             for x, y in neighbors:
                 neighbor_strategy = population[x, y]
-                mean_G = calc_mean_G(gen)
-                delta_G = np.random.normal(mean_G, sigma)
+                mu_delta_G = calc_mu_delta_G(z)
+                delta_G = max(np.random.normal(mu_delta_G, sigma), 0)
 
                 payoff_matrix = {
                     'C': {'C': alpha*delta_G - T - 2*O - A, 'D': -T - O},
@@ -100,9 +100,7 @@ def simulate_population(size_x=100, size_y=100, generations=150, initial_coopera
     population = np.random.choice(['C', 'D'], size=(size_x, size_y), p=[initial_cooperator_ratio, 1 - initial_cooperator_ratio])
     history_frequency = []
     history_fitnesses = []
-
-    print('Initilization')
-    visualize_population(population)
+    z = 0
 
     for gen in range(generations):
         cooperator_count = sum((sum(row == 'C') for row in population))
@@ -111,14 +109,13 @@ def simulate_population(size_x=100, size_y=100, generations=150, initial_coopera
             break
 
         history_frequency.append(cooperator_count)
-        fitnesses = calculate_fitness(population, gen, alpha, beta, sigma, T, O, A)
+        z += cooperator_count / (size_x * size_y)
+        fitnesses = calculate_fitness(population, z, alpha, beta, sigma, T, O, A)
         
         total_fitness = np.sum(fitnesses)
         history_fitnesses.append(total_fitness)
 
         population = update_population(population, fitnesses, deterministic, K=K)
-
-    print('Final results')
 
     if save_figures:
         # Show history frequency
@@ -169,12 +166,12 @@ def __main__():
     parser.add_argument('--gen', type=int, default=1000, help='generations')
     parser.add_argument('--alpha', type=float, default=1, help='synergy coefficient')
     parser.add_argument('--beta', type=float, default=1, help='free-riding coefficient')
-    parser.add_argument('--sigma', type=float, default=5, help='deta G variance')
+    parser.add_argument('--sigma', type=float, default=2, help='deta G variance')
     parser.add_argument('--T', type=float, default=200, help='training cost')
     parser.add_argument('--O', type=float, default=5, help='communication cost')
     parser.add_argument('--A', type=float, default=10, help='aggregation cost')
     parser.add_argument('--K', type=float, default=0.1, help='fermi')
-    parser.add_argument('--det', type=bool, default=False, help='deterministic')
+    parser.add_argument('--det', action='store_true', help='deterministic')
     parser.add_argument('--seed-start', type=int, default=0, help='Starting seed for simulations')
     parser.add_argument('--seed-end', type=int, default=1, help='Ending seed for simulations')
 
@@ -197,11 +194,12 @@ def __main__():
         res_fitness = [float(x) for x in history_fitness[1:]]
 
         # Use strategy and game-type specific directory
-        data_dir = f'data/fc/seed_{seed}'
+        data_dir = f'data/lattice/seed_{seed}'
         
         os.makedirs(data_dir, exist_ok=True)
 
-        file_prefix = f'{data_dir}/alpha_{args.alpha}_beta_{args.beta}'
+        mode = "det" if args.det else f"K_{args.K}"
+        file_prefix = f'{data_dir}/ratio_{args.ratio}_{mode}_alpha_{args.alpha}_beta_{args.beta}'
 
         df = pd.DataFrame(res_freq, columns=['Cooperator_Frequency'])
         df.to_csv(f'{file_prefix}_cooperator_frequency.csv', index=False)

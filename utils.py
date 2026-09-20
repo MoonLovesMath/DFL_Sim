@@ -7,9 +7,9 @@ def fermi(focal, neighbor, K=0.3):
     x = (focal - neighbor) / K
     return math.exp(-x) / (1 + math.exp(-x)) if x >= 0 else 1 / (1 + math.exp(x))
 
-def calc_mean_G(gen):
+def calc_mu_delta_G(z):
     c, eta, theta, s, gamma = 20, 2, 10, 50, -0.7
-    return c * eta * theta / (gen / s - gamma) ** (eta + 1)
+    return c * eta * theta / ((z / s - gamma) ** (eta + 1))
 
 def get_fittest_neighbor(neighbors, fitnesses):
     best_pos = neighbors[0]
