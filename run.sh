@@ -8,7 +8,7 @@ do
         do
             for beta in $(seq 0.1 0.1 1)
             do
-                python scale_free.py --size 10000 --m_edge 2 --ratio $ratio --gen 1000 \
+                python scale_free.py --size 1000 --m_edge 2 --ratio $ratio --gen 1000 \
                     --alpha $alpha --beta $beta --sigma 2 --T 200 --O 5 --A 10 --K $K \
                     --seed-start 0 --seed-end 10
             done
