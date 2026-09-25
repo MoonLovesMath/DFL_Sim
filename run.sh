@@ -1,12 +1,18 @@
 #!/bin/bash
 
-for alpha in $(seq 1 0.1 2)
+for ratio in 0.25 0.5 0.75
 do
-    for beta in $(seq 0.1 0.1 1)
+    for K in 0.01 0.1 1
     do
-        python scale_free.py --size 10000 --m_edge 2 --ratio 0.5 --gen 1000 \
-            --alpha $alpha --beta $beta --sigma 2 --T 200 --O 5 --A 10 --K 0.1 \
-            --seed-start 0 --seed-end 10
+        for alpha in $(seq 1 0.1 2)
+        do
+            for beta in $(seq 0.1 0.1 1)
+            do
+                python scale_free.py --size 10000 --m_edge 2 --ratio $ratio --gen 1000 \
+                    --alpha $alpha --beta $beta --sigma 2 --T 200 --O 5 --A 10 --K $K \
+                    --seed-start 0 --seed-end 10
+            done
+        done
     done
 done
 
